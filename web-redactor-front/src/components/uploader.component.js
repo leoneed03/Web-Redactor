@@ -4,16 +4,20 @@ import {Progress} from 'reactstrap';
 import {ToastContainer, toast} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const API_URL = 'http://localhost:7999/api/'
+
 class Uploader extends Component {
     constructor(props) {
         super(props);
+        this.download = this.download.bind(this);
         this.state = {
+            lastId: null,
             selectedFile: null,
+            selectedIds: null,
             loaded: 0
         }
 
     }
-
 
     uploadAttachment(file, fileName) {
         console.log("Got file to upload");
@@ -23,7 +27,7 @@ class Uploader extends Component {
 
         console.log(file)
 
-        return axios.post("http://localhost:7999/upload", formData, {
+        return axios.post(API_URL + '/upload', formData, {
             headers: {'Content-Type': 'multipart/form-data'},
         });
     }
@@ -91,12 +95,21 @@ class Uploader extends Component {
             })
         }
     }
+    fileId;
     onClickHandler = () => {
         const data = new FormData()
         if (this.state.selectedFile === null) {
             return
         }
-        this.uploadAttachment(this.state.selectedFile[0], '')
+        this.uploadAttachment(this.state.selectedFile[0], '').then(response => {
+            this.setState((prev) => {
+                console.log("Got id ", response.data.fileId);
+                return {
+                    lastId: response.data.fileId,
+                }
+            })
+            console.log(response)
+        })
 
         // for (var x = 0; x < this.state.selectedFile.length; x++) {
         //     data.append('file', this.state.selectedFile[x])
@@ -116,6 +129,46 @@ class Uploader extends Component {
         //     })
     }
 
+
+    visualizeAttachment(id) {
+        console.log("Got file to visualize " + id);
+        let formData = new FormData();
+
+        formData.append("file id: ", id);
+
+        console.log(formData)
+
+        return axios.post('download', formData, {
+            headers: {'Content-Type': 'multipart/form-data'},
+        });
+    }
+
+    async downloadAttachment(fileId) {
+        axios.get(API_URL + 'download/' + fileId, {responseType: 'blob'})
+            .then(response => {
+                var fileDownload = require('js-file-download');
+                let fileName = 'download.png'
+                fileDownload(response.data, fileName);
+                return response;
+            });
+    }
+
+    download(fileId, initialFileName) {
+        this.downloadAttachment(fileId);
+        //console.log(response.data);
+        //event.preventDefault();
+    }
+
+    onClickHandlerVisualize = () => {
+        const data = new FormData()
+        if (this.state.selectedFile === null) {
+            return
+        }
+        this.visualizeAttachment(this.state.selectedFile[0], '').then(response => {
+            console.log(response)
+        })
+    }
+
     render() {
         return (
             <div class="container">
@@ -133,6 +186,14 @@ class Uploader extends Component {
                         </div>
 
                         <button type="button" class="btn btn-success btn-block" onClick={this.onClickHandler}>Upload
+                        </button>
+                        <button type="button" className="btn btn-success btn-block"
+                                onClick={this.onClickHandlerVisualize}>VisualizeLastImage
+                        </button>
+
+                        <button
+                            className="btn btn-primary btn-block color-dark-blue"
+                            onClick={() => this.download(this.state.lastId)}>Download
                         </button>
 
                     </div>

@@ -8,7 +8,6 @@ public class WebRedactorApplication {
 
     public static void main(String[] args) {
 
-        System.out.println("Hello, world!!");
         SpringApplication.run(WebRedactorApplication.class, args);
     }
 
