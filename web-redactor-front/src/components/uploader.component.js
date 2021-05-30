@@ -10,7 +10,10 @@ class Uploader extends Component {
     constructor(props) {
         super(props);
         this.download = this.download.bind(this);
+        this.downloadMergedUpDown = this.downloadMergedUpDown.bind(this);
+
         this.state = {
+            prevIc: null,
             lastId: null,
             selectedFile: null,
             selectedIds: null,
@@ -27,7 +30,7 @@ class Uploader extends Component {
 
         console.log(file)
 
-        return axios.post(API_URL + '/upload', formData, {
+        return axios.post(API_URL + 'upload', formData, {
             headers: {'Content-Type': 'multipart/form-data'},
         });
     }
@@ -105,6 +108,7 @@ class Uploader extends Component {
             this.setState((prev) => {
                 console.log("Got id ", response.data.fileId);
                 return {
+                    prevId: prev.lastId,
                     lastId: response.data.fileId,
                 }
             })
@@ -155,8 +159,23 @@ class Uploader extends Component {
 
     download(fileId, initialFileName) {
         this.downloadAttachment(fileId);
-        //console.log(response.data);
-        //event.preventDefault();
+    }
+
+
+    async downloadMergedUpDown(fileIdUp, fileIdDown) {
+        axios.get(API_URL + 'merge/' + fileIdUp + '&' + fileIdDown, {responseType: 'blob'})
+            .then(response => {
+                var fileDownload = require('js-file-download');
+                let fileName = 'merged.png'
+                fileDownload(response.data, fileName);
+                console.log(response)
+                return response;
+
+            })
+    }
+
+    downloadMergedUpdown(fileIdUp, fileIdDown) {
+        this.downloadMergedUpDown(fileIdUp, fileIdDown);
     }
 
     onClickHandlerVisualize = () => {
@@ -195,6 +214,12 @@ class Uploader extends Component {
                             className="btn btn-primary btn-block color-dark-blue"
                             onClick={() => this.download(this.state.lastId)}>Download
                         </button>
+
+                        <button
+                            className="btn btn-primary btn-block color-dark-blue"
+                            onClick={() => this.downloadMergedUpdown(this.state.lastId, this.state.prevId)}>Merge
+                        </button>
+
 
                     </div>
                 </div>
