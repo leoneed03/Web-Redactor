@@ -4,7 +4,7 @@ import {Progress} from 'reactstrap';
 import {ToastContainer, toast} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const API_URL = 'http://localhost:7999/api/'
+const API_URL = process.env.REACT_APP_SERVER_URL + '/api/'
 
 class Uploader extends Component {
     constructor(props) {
@@ -16,13 +16,11 @@ class Uploader extends Component {
             prevIc: null,
             lastId: null,
             selectedFile: null,
-            selectedIds: null,
-            loaded: 0
+            selectedIds: null
         }
-
     }
 
-    uploadAttachment(file, fileName) {
+    uploadAttachment(file) {
         console.log("Got file to upload");
         let formData = new FormData();
 
@@ -37,64 +35,30 @@ class Uploader extends Component {
 
 
     checkMimeType = (event) => {
-        //getting file object
         let files = event.target.files
-        //define message container
         let err = []
-        // list allow mime type
         const types = ['image/png', 'image/jpeg', 'image/gif']
-        // loop access array
+
         for (var x = 0; x < files.length; x++) {
-            // compare file type find doesn't matach
+
             if (types.every(type => files[x].type !== type)) {
-                // create error message and assign to container
                 err[x] = files[x].type + ' is not a supported format\n';
             }
         }
 
-        for (var z = 0; z < err.length; z++) {// if message not same old that mean has error
-            // discard selected file
+        for (var z = 0; z < err.length; z++) {
             toast.error(err[z])
             event.target.value = null
         }
         return true;
     }
-    maxSelectFile = (event) => {
-        let files = event.target.files
-        if (files.length > 3) {
-            const msg = 'Only 3 images can be uploaded at a time'
-            event.target.value = null
-            toast.warn(msg)
-            return false;
-        }
-        return true;
-    }
-    checkFileSize = (event) => {
-        let files = event.target.files
-        let size = 2000000
-        let err = [];
-        for (var x = 0; x < files.length; x++) {
-            if (files[x].size > size) {
-                err[x] = files[x].type + 'is too large, please pick a smaller file\n';
-            } else if (files[x].size === 0) {
-                err[x] = 'empty file is selected\n';
-            }
-        }
-        ;
-        for (var z = 0; z < err.length; z++) {// if message not same old that mean has error
-            // discard selected file
-            toast.error(err[z])
-            event.target.value = null
-        }
-        return true;
-    }
+
     onChangeHandler = event => {
         var files = event.target.files
-        if (this.maxSelectFile(event) && this.checkMimeType(event) && this.checkFileSize(event)) {
-            // if return true allow to setState
+
+        if (this.checkMimeType(event)) {
             this.setState({
-                selectedFile: files,
-                loaded: 0
+                selectedFile: files
             })
         }
     }
@@ -104,7 +68,7 @@ class Uploader extends Component {
         if (this.state.selectedFile === null) {
             return
         }
-        this.uploadAttachment(this.state.selectedFile[0], '').then(response => {
+        this.uploadAttachment(this.state.selectedFile[0]).then(response => {
             this.setState((prev) => {
                 console.log("Got id ", response.data.fileId);
                 return {
@@ -114,37 +78,6 @@ class Uploader extends Component {
             })
             console.log(response)
         })
-
-        // for (var x = 0; x < this.state.selectedFile.length; x++) {
-        //     data.append('file', this.state.selectedFile[x])
-        // }
-        // axios.post("http://localhost:7999/upload", data, {
-        //     onUploadProgress: ProgressEvent => {
-        //         this.setState({
-        //             loaded: (ProgressEvent.loaded / ProgressEvent.total * 100),
-        //         })
-        //     },
-        // })
-        //     .then(res => { // then print response status
-        //         toast.success('upload success')
-        //     })
-        //     .catch(err => { // then print response status
-        //         toast.error('upload fail with ' + this.state.selectedFile.length + ' files, ' + err)
-        //     })
-    }
-
-
-    visualizeAttachment(id) {
-        console.log("Got file to visualize " + id);
-        let formData = new FormData();
-
-        formData.append("file id: ", id);
-
-        console.log(formData)
-
-        return axios.post('download', formData, {
-            headers: {'Content-Type': 'multipart/form-data'},
-        });
     }
 
     async downloadAttachment(fileId) {
@@ -178,16 +111,6 @@ class Uploader extends Component {
         this.downloadMergedUpDown(fileIdUp, fileIdDown);
     }
 
-    onClickHandlerVisualize = () => {
-        const data = new FormData()
-        if (this.state.selectedFile === null) {
-            return
-        }
-        this.visualizeAttachment(this.state.selectedFile[0], '').then(response => {
-            console.log(response)
-        })
-    }
-
     render() {
         return (
             <div class="container">
@@ -197,17 +120,8 @@ class Uploader extends Component {
                             <label>Upload Your File </label>
                             <input type="file" class="form-control" multiple onChange={this.onChangeHandler}/>
                         </div>
-                        <div class="form-group">
-                            <ToastContainer/>
-                            <Progress max="100" color="success"
-                                      value={this.state.loaded}>{Math.round(this.state.loaded, 2)}%</Progress>
-
-                        </div>
 
                         <button type="button" class="btn btn-success btn-block" onClick={this.onClickHandler}>Upload
-                        </button>
-                        <button type="button" className="btn btn-success btn-block"
-                                onClick={this.onClickHandlerVisualize}>VisualizeLastImage
                         </button>
 
                         <button
@@ -217,10 +131,8 @@ class Uploader extends Component {
 
                         <button
                             className="btn btn-primary btn-block color-dark-blue"
-                            onClick={() => this.downloadMergedUpdown(this.state.lastId, this.state.prevId)}>Merge
+                            onClick={() => this.downloadMergedUpdown(this.state.lastId, this.state.prevId)}>Merge 2 last uploaded images
                         </button>
-
-
                     </div>
                 </div>
             </div>

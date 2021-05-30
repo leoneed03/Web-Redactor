@@ -9,6 +9,7 @@ import com.example.webredactor.tokens.ResponseToken;
 import org.apache.commons.io.FileUtils;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,25 +23,22 @@ import java.io.IOException;
 @CrossOrigin("*")
 @RequestMapping("/api")
 public class ImageController {
-
-    //TODO: use dependency injection
-    final ImageRepo imageRepo = new ImageRepoHashtable();
+    @Autowired
+    ImageRepo imageRepo;
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
-            System.out.println("uploaded file");
-            System.out.println(file.getOriginalFilename());
 
             ResponseToken responseToken = imageRepo.addFile(new ImageData(file, file.getOriginalFilename()));
 
-            return ResponseEntity.ok().body(new MessageResponse("Успешно загружены файлы: "
+            return ResponseEntity.ok().body(new MessageResponse("Files uploaded "
                     + file.getOriginalFilename()
                     + " "
                     + responseToken.getUniqueId(), responseToken.getUniqueId()));
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.badRequest().body(new MessageResponse("Ошибка при загрузке файлов", -1));
+            return ResponseEntity.badRequest().body(new MessageResponse("Failed to upload files", -1));
         }
     }
 
@@ -80,12 +78,6 @@ public class ImageController {
         Rect rect1 = new Rect(0, 0, img1.cols(), img1.rows());
         Rect rect2 = new Rect(0, img1.rows(), img2.cols(), img2.rows());
 
-        System.out.println("First image: " + "x, y: " + rect1.x + " " + rect1.y + " low x, y: "
-                + (rect1.x + rect1.width) + " " + (rect1.y + rect1.height));
-        System.out.println("Second image: " + "x, y: " + rect2.x + " " + rect2.y + " low x, y: "
-                + (rect2.x + rect2.width) + " " + (rect2.y + rect2.height));
-        System.out.println("Dest image: " + "x, y: " + res.cols() + " " + res.rows());
-
         Mat dest1 = res.submat(rect1);
         Mat dest2 = res.submat(rect2);
 
@@ -107,7 +99,6 @@ public class ImageController {
                                 "application/octet-stream")
                         .body(FileUtils.readFileToByteArray(file));
             } catch (IOException e) {
-                System.out.println("Cannot read file to bytes");
                 e.printStackTrace();
 
                 throw new FileNotFoundException("file " + imageFoundLeft.getInitialName() + " not found");
@@ -116,6 +107,5 @@ public class ImageController {
                 assert fileIsDeleted;
             }
         }
-
     }
 }
