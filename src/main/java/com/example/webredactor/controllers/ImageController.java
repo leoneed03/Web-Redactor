@@ -3,12 +3,12 @@ package com.example.webredactor.controllers;
 import com.example.webredactor.data.Drawable;
 import com.example.webredactor.data.ImageData;
 import com.example.webredactor.repositories.ImageRepo;
-import com.example.webredactor.repositories.ImageRepoHashtable;
 import com.example.webredactor.requests.MessageResponse;
 import com.example.webredactor.tokens.ResponseToken;
 import org.apache.commons.io.FileUtils;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +24,10 @@ import java.io.IOException;
 @RequestMapping("/api")
 public class ImageController {
     @Autowired
-    ImageRepo imageRepo;
+    private ImageRepo imageRepo;
+
+    private final Object mutexFileCreation = new Object();
+    private final Object mutexFileCreationGrayscale = new Object();
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
@@ -50,7 +53,6 @@ public class ImageController {
 
         byte[] imageInnerFileLeft = imageFoundLeft.getInnerFile();
 
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\"" + imageFoundLeft.getInitialName() + "\"")
@@ -60,6 +62,45 @@ public class ImageController {
 
     }
 
+    public ResponseEntity<?> constructResponseWithFile(String tempFileName, Mat imgGrayscale, String fileInitialName) throws FileNotFoundException {
+
+        Imgcodecs.imwrite(tempFileName, imgGrayscale);
+        File file = new File(tempFileName);
+
+        try {
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + fileInitialName + "\"")
+                    .header(HttpHeaders.CONTENT_TYPE,
+                            "application/octet-stream")
+                    .body(FileUtils.readFileToByteArray(file));
+        } catch (IOException e) {
+            e.printStackTrace();
+
+            throw new FileNotFoundException("file " + fileInitialName + " not found");
+        } finally {
+            boolean fileIsDeleted = file.delete();
+            assert fileIsDeleted;
+        }
+    }
+
+    @GetMapping("to-grayscale/{fileIdLeft}")
+    public ResponseEntity<?> downloadFileGrayscale(@PathVariable Long fileIdLeft) throws FileNotFoundException {
+
+        Drawable imageFoundInRepo = imageRepo.getFileById(fileIdLeft);
+
+        Mat imageSource = Imgcodecs.imdecode(new MatOfByte(imageFoundInRepo.getInnerFile()), Imgcodecs.IMREAD_UNCHANGED);
+
+        Mat imgGrayscale = new Mat(imageSource.rows(), imageSource.cols(), CvType.CV_16UC1);
+        Imgproc.cvtColor(imageSource, imgGrayscale, Imgproc.COLOR_RGB2GRAY);
+
+        String tempImageName = "to_grayscale_" + imageFoundInRepo.getInitialName();
+
+        synchronized (mutexFileCreationGrayscale) {
+            return constructResponseWithFile(tempImageName, imgGrayscale, imageFoundInRepo.getInitialName());
+        }
+    }
+
     @GetMapping("merge/{fileIdLeft}&{fileIdRight}")
     public ResponseEntity<?> downloadFileMergedUpDown(@PathVariable Long fileIdLeft,
                                                       @PathVariable Long fileIdRight) throws FileNotFoundException {
@@ -67,45 +108,27 @@ public class ImageController {
         Drawable imageFoundLeft = imageRepo.getFileById(fileIdLeft);
         Drawable imageFoundRight = imageRepo.getFileById(fileIdRight);
 
-        Mat img1 = Imgcodecs.imdecode(new MatOfByte(imageFoundLeft.getInnerFile()), Imgcodecs.IMREAD_UNCHANGED);
-        Mat img2 = Imgcodecs.imdecode(new MatOfByte(imageFoundRight.getInnerFile()), Imgcodecs.IMREAD_UNCHANGED);
+        Mat imageSourceLeft = Imgcodecs.imdecode(new MatOfByte(imageFoundLeft.getInnerFile()), Imgcodecs.IMREAD_UNCHANGED);
+        Mat imageSourceRight = Imgcodecs.imdecode(new MatOfByte(imageFoundRight.getInnerFile()), Imgcodecs.IMREAD_UNCHANGED);
 
-        int cols = Math.max(img1.cols(), img2.cols());
-        int rows = img1.rows() + img2.rows();
+        int colsMerged = Math.max(imageSourceLeft.cols(), imageSourceRight.cols());
+        int rowsMerged = imageSourceLeft.rows() + imageSourceRight.rows();
 
-        Mat res = new Mat(rows, cols, CvType.CV_8UC3);
+        Mat resultMergedImage = new Mat(rowsMerged, colsMerged, CvType.CV_8UC3);
 
-        Rect rect1 = new Rect(0, 0, img1.cols(), img1.rows());
-        Rect rect2 = new Rect(0, img1.rows(), img2.cols(), img2.rows());
+        Rect destRectLeft = new Rect(0, 0, imageSourceLeft.cols(), imageSourceLeft.rows());
+        Rect destRectRight = new Rect(0, imageSourceLeft.rows(), imageSourceRight.cols(), imageSourceRight.rows());
 
-        Mat dest1 = res.submat(rect1);
-        Mat dest2 = res.submat(rect2);
+        Mat destMatLeft = resultMergedImage.submat(destRectLeft);
+        Mat destMatRight = resultMergedImage.submat(destRectRight);
 
-        img1.copyTo(dest1);
-        img2.copyTo(dest2);
+        imageSourceLeft.copyTo(destMatLeft);
+        imageSourceRight.copyTo(destMatRight);
 
-        synchronized (imageRepo) {
-            String tempImageName = "merged_" + imageFoundLeft.getInitialName();
+        String tempImageName = "merged_" + imageFoundLeft.getInitialName();
 
-            Imgcodecs.imwrite(tempImageName, res);
-
-            File file = new File(tempImageName);
-
-            try {
-                return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION,
-                                "attachment; filename=\"" + imageFoundLeft.getInitialName() + "\"")
-                        .header(HttpHeaders.CONTENT_TYPE,
-                                "application/octet-stream")
-                        .body(FileUtils.readFileToByteArray(file));
-            } catch (IOException e) {
-                e.printStackTrace();
-
-                throw new FileNotFoundException("file " + imageFoundLeft.getInitialName() + " not found");
-            } finally {
-                boolean fileIsDeleted = file.delete();
-                assert fileIsDeleted;
-            }
+        synchronized (mutexFileCreation) {
+            return constructResponseWithFile(tempImageName, resultMergedImage, imageFoundLeft.getInitialName());
         }
     }
 }

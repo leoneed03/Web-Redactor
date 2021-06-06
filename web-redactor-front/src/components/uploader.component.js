@@ -1,6 +1,5 @@
 import React, {Component} from 'react';
 import axios from 'axios';
-import {Progress} from 'reactstrap';
 import {ToastContainer, toast} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -86,6 +85,7 @@ class Uploader extends Component {
                 var fileDownload = require('js-file-download');
                 let fileName = 'download.png'
                 fileDownload(response.data, fileName);
+
                 return response;
             });
     }
@@ -94,6 +94,20 @@ class Uploader extends Component {
         this.downloadAttachment(fileId);
     }
 
+    downloadGrayscale(fileId) {
+        this.downloadAttachmentGrayscale(fileId);
+    }
+
+    async downloadAttachmentGrayscale(fileId) {
+        axios.get(API_URL + 'to-grayscale/' + fileId, {responseType: 'blob'})
+            .then(response => {
+                var fileDownload = require('js-file-download');
+                let fileName = 'to-grayscale.png'
+                fileDownload(response.data, fileName);
+                console.log(response)
+                return response;
+            })
+    }
 
     async downloadMergedUpDown(fileIdUp, fileIdDown) {
         axios.get(API_URL + 'merge/' + fileIdUp + '&' + fileIdDown, {responseType: 'blob'})
@@ -113,20 +127,24 @@ class Uploader extends Component {
 
     render() {
         return (
-            <div class="container">
-                <div class="row">
-                    <div class="offset-md-3 col-md-6">
-                        <div class="form-group files">
+            <div className="container">
+                <div className="row">
+                    <div className="offset-md-3 col-md-6">
+                        <div className="form-group files">
                             <label>Upload Your File </label>
-                            <input type="file" class="form-control" multiple onChange={this.onChangeHandler}/>
+                            <input type="file" className="form-control" multiple onChange={this.onChangeHandler}/>
                         </div>
 
-                        <button type="button" class="btn btn-success btn-block" onClick={this.onClickHandler}>Upload
+                        <button type="button" className="btn btn-success btn-block" onClick={this.onClickHandler}>Upload
                         </button>
 
                         <button
                             className="btn btn-primary btn-block color-dark-blue"
                             onClick={() => this.download(this.state.lastId)}>Download
+                        </button>
+                        <button
+                            className="btn btn-primary btn-block color-dark-blue"
+                            onClick={() => this.downloadGrayscale(this.state.lastId)}>Download Grayscale
                         </button>
 
                         <button
