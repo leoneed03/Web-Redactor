@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import axios from 'axios';
-import {ToastContainer, toast} from 'react-toastify';
+import {toast} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const API_URL = process.env.REACT_APP_SERVER_URL + '/api/'
@@ -10,6 +10,7 @@ class Uploader extends Component {
         super(props);
         this.download = this.download.bind(this);
         this.downloadMergedUpDown = this.downloadMergedUpDown.bind(this);
+        this.downloadAttachmentGrayscale = this.downloadAttachmentGrayscale.bind(this)
 
         this.state = {
             prevIc: null,
@@ -63,7 +64,6 @@ class Uploader extends Component {
     }
     fileId;
     onClickHandler = () => {
-        const data = new FormData()
         if (this.state.selectedFile === null) {
             return
         }
@@ -90,7 +90,7 @@ class Uploader extends Component {
             });
     }
 
-    download(fileId, initialFileName) {
+    download(fileId) {
         this.downloadAttachment(fileId);
     }
 

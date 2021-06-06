@@ -23,8 +23,13 @@ import java.io.IOException;
 @CrossOrigin("*")
 @RequestMapping("/api")
 public class ImageController {
-    @Autowired
+
     private ImageRepo imageRepo;
+
+    @Autowired
+    public ImageController(ImageRepo imageRepo) {
+        this.imageRepo = imageRepo;
+    }
 
     private final Object mutexFileCreation = new Object();
     private final Object mutexFileCreationGrayscale = new Object();
